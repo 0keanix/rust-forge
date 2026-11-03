@@ -1,0 +1,19 @@
+# Cargo build output, including fixture builds under evals/ and tests/
+# (keep Cargo.lock files: fixtures pin versions through them)
+target/
+
+# loki-mode run state: logs, queues, checkpoints, receipts
+.loki/
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# RustRover / IntelliJ
+.idea/
+
+# macOS
+.DS_Store
+
+# Local secrets
+.env
+.env.*

@@ -1,0 +1,58 @@
+# PRD 01: rust-forge — domain skill `rust-domain-cli`
+
+Builds on the core stage (`docs/prd/00-core.md`, already implemented) and on earlier domain stages.
+Add exactly one domain skill. Do not change forge-tools behaviour, hooks, agents, the core skill or other
+domain skills; the only edits outside the new skill are the ones listed under Deliver.
+
+## Deliver
+
+- `skills/rust-domain-cli/SKILL.md`, ≤150 lines. Add `references/` files only if SKILL.md would otherwise exceed
+  150 lines; name each one in SKILL.md together with the condition for reading it.
+- One new eval appended to `evals/evals.json` (keep existing entries and ids; next free id) with its fixture
+  project in `evals/fixtures/cli-notes/`, whose `Cargo.toml` declares `clap`.
+- A test in `tools/forge-tools/tests/` that runs `forge-tools domains` on that fixture and asserts it reports
+  `cli` and `rust-domain-cli`.
+- Fixture pins `clap` in its `Cargo.lock` to the same version as the root `Cargo.lock`, so `cargo check --offline`
+  works on any machine that has built forge-tools.
+- README "Domains" section: add one line for `rust-domain-cli`.
+
+## Skill content
+
+clap derive (subcommands, global flags, value enums), config layering (defaults, config file, environment,
+flags), `anyhow` in binaries and `thiserror` in libraries, meaningful exit codes, output that is both
+human-readable and scriptable (`--json`), and CLI tests with `assert_cmd` + `predicates` driving the built binary.
+
+## Rules for this skill
+
+- `description`: third person, 1–1024 characters, first sentence names the trigger (the crates above and the kind
+  of project), states what the skill does and when to use it, slightly pushy because skills tend to undertrigger.
+  Mention that it complements the core `rust-forge` skill.
+- First step of the body: run `forge-tools domains`, take the key crate's version from its output, and use docs.rs
+  and the official guides for exactly that version. Explain why in one sentence: this ecosystem changes between
+  minor versions, and version drift is the main source of wrong code.
+- Accuracy rule: write principles and procedures. Include a concrete API name or code example only if you verified
+  it against docs.rs for a stated version; otherwise leave it out. A wrong API example in a skill is worse than none.
+- Imperative mood; explain why instead of piling up MUST/ALWAYS.
+- Do not restate what the core skill already covers (gates, crate policy, error codes); refer to it.
+
+## Eval
+
+- prompt: "In evals/fixtures/cli-notes there is a small notes CLI on clap. Add an export subcommand that writes all notes as JSON or CSV, with the default format taken from a config file in the user config dir and overridable by a flag. Cover it with tests that run the binary."
+- expected_output: "Uses clap derive for the new subcommand and a value enum for the format, layers config file under the flag, returns a non-zero exit code on bad input, and adds assert_cmd tests; gates fast and full pass."
+- files: the fixture directory above.
+
+## Acceptance criteria
+
+All verified by `cargo test --workspace`, offline.
+
+- D-1 AC-1 of the core PRD still holds: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo test --workspace` pass.
+- D-2 The core structure test (AC-10) passes unchanged with the new skill present.
+- D-3 The detection test for the new fixture passes.
+- D-4 `evals/evals.json` passes the core evals test (AC-11) with the new entry.
+- D-5 The cli fixture passes `cargo check --offline` (run as a test).
+
+## Out of scope
+
+Other domains; changes to forge-tools source other than the new test; compiling this fixture in tests unless
+listed above.
