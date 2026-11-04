@@ -2,6 +2,9 @@
 # (keep Cargo.lock files: fixtures pin versions through them)
 target/
 
+# claude plugin eval results
+evals/results/
+
 # loki-mode run state: logs, queues, checkpoints, receipts
 .loki/
 

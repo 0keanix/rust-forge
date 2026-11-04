@@ -7,6 +7,8 @@
 set -euo pipefail
 
 STAGES='
+tools         impl   docs/prd/00-core-tools.md
+v-tools       valid  docs/prd/00-core-tools.md
 core          impl   docs/prd/00-core.md
 v-core        valid  docs/prd/00-core.md
 cli           impl   docs/prd/01-cli.md
@@ -25,6 +27,10 @@ wasm          impl   docs/prd/07-wasm.md
 v-wasm        valid  docs/prd/07-wasm.md
 embedded      impl   docs/prd/08-embedded.md
 v-embedded    valid  docs/prd/08-embedded.md
+automation    impl   docs/prd/09-automation.md
+v-automation  valid  docs/prd/09-automation.md
+journal       impl   docs/prd/10-journal.md
+v-journal     valid  docs/prd/10-journal.md
 final         final  docs/prd/99-final.md
 '
 
@@ -36,16 +42,25 @@ COST_VALID=${FORGE_COST_VALID:-10}
 COST_FINAL=${FORGE_COST_FINAL:-15}
 PUSH=${FORGE_PUSH:-1}
 
+# loki engine10 defaults are tuned for small JS/Python tasks and failed the first core run:
+# - it split the PRD into parallel units with no dependencies between them (README started before the code it
+#   documents), so LOKI_SPEED=0 makes each PRD one sequential run;
+# - it stops a run at a fixed wall-clock cap (implement and fix phases are capped too), too short for Rust with
+#   compilation, so --deep raises the caps.
+export LOKI_SPEED=${LOKI_SPEED:-0}
+LOKI_FLAGS=${FORGE_LOKI_FLAGS:---deep}
+
 usage() {
   cat <<'EOF'
 Usage: scripts/run-pipeline.sh [--from <stage>] [--only <stage>] [--dry-run]
 
-Runs the stages below in order with `loki start <prd> --no-pr --max-cost <usd>`, checks each receipt with
+Runs the stages below in order with `loki start <prd> --no-pr --max-cost <usd> --deep`, checks each receipt with
 `loki verify`, fast-forwards main to the run's commits and pushes main to origin.
 
 Stages:
-  core v-core cli v-cli game v-game ffi-mobile v-ffi-mobile ml v-ml
-  web v-web desktop v-desktop wasm v-wasm embedded v-embedded final
+  tools v-tools core v-core cli v-cli game v-game ffi-mobile v-ffi-mobile ml v-ml
+  web v-web desktop v-desktop wasm v-wasm embedded v-embedded
+  automation v-automation journal v-journal final
 
 Options:
   --from <stage>   start at this stage (resume after fixing a stopped run)
@@ -55,6 +70,9 @@ Options:
 Environment:
   FORGE_COST_CORE (40)  FORGE_COST_DOMAIN (15)  FORGE_COST_VALID (10)  FORGE_COST_FINAL (15)
   FORGE_PUSH (1)        set to 0 to keep everything local
+  FORGE_LOKI_FLAGS (--deep)   extra flags for every loki start
+  LOKI_SPEED (0)        0 = one sequential run per PRD; loki's own default splits PRDs into parallel units
+  LOKI_AUTO_CONFIRM     set to true when running without a terminal (for example from a Claude Code session)
 EOF
 }
 
@@ -79,7 +97,7 @@ done
 
 cost_for() { # name kind
   case $2 in
-    impl) if [ "$1" = core ]; then echo "$COST_CORE"; else echo "$COST_DOMAIN"; fi ;;
+    impl) case $1 in tools|core|automation|journal) echo "$COST_CORE" ;; *) echo "$COST_DOMAIN" ;; esac ;;
     valid) echo "$COST_VALID" ;;
     final) echo "$COST_FINAL" ;;
   esac
@@ -142,7 +160,8 @@ run_stage() { # name kind prd
 
   base=$(git rev-parse HEAD)
   set +e
-  loki start "$prd_file" --no-pr --max-cost "$cost"
+  # shellcheck disable=SC2086
+  loki start "$prd_file" --no-pr --max-cost "$cost" $LOKI_FLAGS
   rc=$?
   set -e
   case $rc in

@@ -1,6 +1,8 @@
 # PRD 07: rust-forge — domain skill `rust-domain-wasm`
 
-Builds on the core stage (`docs/prd/00-core.md`, already implemented) and on earlier domain stages.
+Builds on the core stages (`docs/prd/00-core-tools.md`, `docs/prd/00-core.md`, already implemented) and on
+earlier domain stages. Read `00-core.md` §6–§8 first: they define the skill rules, the eval case format and the
+structure tests this stage must pass.
 Add exactly one domain skill. Do not change forge-tools behaviour, hooks, agents, the core skill or other
 domain skills; the only edits outside the new skill are the ones listed under Deliver.
 
@@ -8,10 +10,14 @@ domain skills; the only edits outside the new skill are the ones listed under De
 
 - `skills/rust-domain-wasm/SKILL.md`, ≤150 lines. Add `references/` files only if SKILL.md would otherwise exceed
   150 lines; name each one in SKILL.md together with the condition for reading it.
-- One new eval appended to `evals/evals.json` (keep existing entries and ids; next free id) with its fixture
-  project in `evals/fixtures/wasm-filter/`, whose `Cargo.toml` declares `leptos`, `yew` or `wasm-bindgen`.
-- A test in `tools/forge-tools/tests/` that runs `forge-tools domains` on that fixture and asserts it reports
-  `wasm` and `rust-domain-wasm`.
+- Frontmatter `metadata.forge-verified`: `crate=version` pairs for every key crate the skill gives
+  version-specific guidance for, with the exact version you checked the text against on docs.rs (normally the newest
+  stable release today). The drift check in a later stage compares these against crates.io.
+- Eval case `evals/domain-wasm/` in the format of `00-core.md` §7: `prompt.md` with tags `[domain, wasm]`,
+  `case.yaml` and `scaffold.sh` that writes the starting project (wasm-filter) whose `Cargo.toml` declares `leptos`, `yew` or `wasm-bindgen`;
+  graders: `tool_used` Skill `rust-domain-wasm`, plus one `llm` grader built from the expected behaviour below.
+- A test in `tools/forge-tools/tests/` that runs that `scaffold.sh` in a temp dir, then `forge-tools domains` there,
+  and asserts it reports `wasm` and `rust-domain-wasm`.
 - README "Domains" section: add one line for `rust-domain-wasm`.
 
 ## Skill content
@@ -33,11 +39,10 @@ dependencies that do not build for wasm, keeping logic in a shared crate that is
 - Imperative mood; explain why instead of piling up MUST/ALWAYS.
 - Do not restate what the core skill already covers (gates, crate policy, error codes); refer to it.
 
-## Eval
+## Eval case
 
-- prompt: "evals/fixtures/wasm-filter is a workspace with a note-filtering crate and an empty Leptos app crate. Build a client-side app with trunk that filters notes as you type, keeping the filter logic in the shared crate with host tests and adding a wasm-bindgen-test for the browser part."
-- expected_output: "Keeps filtering in the shared crate with host tests, builds the Leptos CSR app with trunk for wasm32, gates non-wasm dependencies behind features, and adds a wasm-bindgen-test; host gates pass."
-- files: the fixture directory above.
+- prompt (`prompt.md` body): "This repo is a workspace with a note-filtering crate and an empty Leptos app crate. Build a client-side app with trunk that filters notes as you type, keeping the filter logic in the shared crate with host tests and adding a wasm-bindgen-test for the browser part."
+- expected behaviour (rubric for the `llm` grader): "Keeps filtering in the shared crate with host tests, builds the Leptos CSR app with trunk for wasm32, gates non-wasm dependencies behind features, and adds a wasm-bindgen-test; host gates pass."
 
 ## Acceptance criteria
 
@@ -47,9 +52,12 @@ All verified by `cargo test --workspace`, offline.
   `cargo test --workspace` pass.
 - D-2 The core structure test (AC-10) passes unchanged with the new skill present.
 - D-3 The detection test for the new fixture passes.
-- D-4 `evals/evals.json` passes the core evals test (AC-11) with the new entry.
+- D-4 The core eval suite test (AC-11) passes unchanged with the new case.
+- D-5 Outside `cargo test`: run the new case once with
+  `scripts/plugin-eval.sh . --case domain-wasm --runs 1 --ablation none` and add its score and cost as a row in the
+  README "Evals" table.
 
 ## Out of scope
 
-Other domains; changes to forge-tools source other than the new test; compiling this fixture in tests unless
-listed above.
+Other domains; changes to forge-tools source other than the new test; compiling the scaffolded project in
+`cargo test`.

@@ -1,14 +1,16 @@
 # PRD 00: rust-forge core — Claude Code plugin for Rust development
 
-This is stage 1 of a staged build. Later PRDs in `docs/prd/` add one domain skill each (`01-cli.md` …
-`08-embedded.md`). Do not create any `rust-domain-*` skill in this stage.
+This is stage 2 of a staged build. Stage 1 (`docs/prd/00-core-tools.md`) already built `forge-tools`; this stage
+adds the plugin around it. Later PRDs in `docs/prd/` add one domain skill each (`01-cli.md` … `08-embedded.md`),
+then automation (`09-automation.md`) and the improvement journal (`10-journal.md`).
+Do not create any `rust-domain-*` skill in this stage.
 
 ## 1. Goal
 
 Build the core of `rust-forge`, a Claude Code plugin that makes Claude reliable at developing Rust applications:
 deterministic cargo quality gates enforced by hooks, compiler diagnostics compressed for the model,
-a crate-verification policy against hallucinated crates and APIs, Rust-specialised subagents, and
-a core skill that later domain skills plug into.
+a crate-verification policy against hallucinated crates and APIs, Rust-specialised subagents, a core skill that
+later domain skills plug into, and an eval suite that later stages use to gate changes automatically.
 
 The plugin does not orchestrate long autonomous runs (that is loki-mode's job). It is the Rust layer:
 knowledge, gates and diagnostics that any Claude Code session (or a loki run) uses.
@@ -16,12 +18,14 @@ knowledge, gates and diagnostics that any Claude Code session (or a loki run) us
 Primary user: a solo developer building Rust CLIs, Bevy games, offline-first apps with a Rust core,
 and local LLM inference, on macOS (Apple Silicon).
 
-## 2. Repository layout (deliver exactly this in this stage)
+## 2. Repository layout after this stage
 
 ```
 rust-forge/
 ├── Cargo.toml                      # cargo workspace, members = ["tools/forge-tools"]
-├── .claude-plugin/plugin.json
+├── .claude-plugin/
+│   ├── plugin.json
+│   └── marketplace.json            # this repo is its own marketplace with one plugin
 ├── hooks/hooks.json
 ├── agents/
 │   ├── crate-architect.md
@@ -43,110 +47,32 @@ rust-forge/
 │           ├── workspace-layout.md
 │           ├── testing.md
 │           └── crate-policy.md
-├── tools/forge-tools/              # Rust binary used by hooks and commands
-│   ├── Cargo.toml
-│   ├── src/...
-│   └── tests/
-│       ├── fixtures/...
-│       └── *.rs
-├── evals/
-│   ├── evals.json
-│   └── fixtures/...
+├── tools/forge-tools/              # exists from stage 1
+├── evals/                          # `claude plugin eval` suite, see §7
+│   └── <case>/
+│       ├── prompt.md
+│       ├── case.yaml               # only when the case needs a scaffold
+│       ├── scaffold.sh             # writes the starting project into the empty run workspace
+│       └── graders/*.md
+├── scripts/plugin-eval.sh          # the one place that knows how to run the suite
 └── README.md
 ```
 
-## 3. forge-tools (Rust binary)
+## 3. forge-tools
 
-Single binary, installed with `cargo install --path tools/forge-tools`. Edition 2024, stable toolchain.
-Allowed dependencies: `clap` (derive), `serde`, `serde_json`, `toml_edit`, `anyhow`, `ureq`.
-Add them with `cargo add`. Add nothing else without a written reason in README.
+Built in stage 1; its behaviour is specified in `docs/prd/00-core-tools.md` §3. Use it from hooks, commands, agents
+and the skill exactly as specified there. Change its source only to fix a defect, and then with a test that fails
+before the fix. In the root `Cargo.toml`, set `exclude = ["evals", "tools/forge-tools/tests/fixtures"]`.
 
-Lints in `tools/forge-tools/Cargo.toml` (the tool must follow the rules it enforces):
-`clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`, `clippy::dbg_macro`, `clippy::todo`
-are `deny`; tests may opt out with `#[expect(..., reason = "...")]` or a `#![cfg_attr(test, ...)]` attribute.
+## 4. Plugin manifest and hooks
 
-### 3.1 `forge-tools diag`
-
-Reads cargo `--message-format=json` lines from stdin, prints a compact summary for an LLM.
-
-- Keep only `reason == "compiler-message"` with level `error` or `warning`. Ignore everything else, including
-  non-JSON lines.
-- Deduplicate by (code, primary file, line, column, message). Same error from lib and test targets counts once.
-- Order: errors first, then warnings, each in file/line order.
-- One line per diagnostic: `<CODE|level> <file>:<line>:<col> <message>` plus ` | help: <first help child>` when present.
-- Cap: 20 errors and 10 warnings; then one line `... <N> more errors, <M> more warnings omitted`.
-- For the first 3 errors, append the `rendered` field, indented.
-- Last line: `errors=<n> warnings=<m>`.
-- Exit code: 1 if any error, else 0.
-- Do not use `--message-format=json-render-diagnostics` anywhere: it hides `compiler-message` entries.
-
-### 3.2 `forge-tools gates <level>`
-
-Runs gates from the cargo workspace root (find it with `cargo locate-project --workspace --message-format plain`).
-Stops at the first failing gate. Full raw output goes to `target/forge/logs/<unix-ts>-<gate>.log`;
-stdout gets only the compact summary (via the `diag` logic for check/clippy).
-
-| Level | Gates in order |
-|---|---|
-| `fast` | G0 `cargo fmt --all -- --check` · G1 `cargo check --workspace --all-targets --message-format=json` · G2 `cargo clippy --workspace --all-targets --all-features --message-format=json -- -D warnings` |
-| `full` | `fast` + G3 `cargo nextest run --workspace --all-features` (fallback `cargo test --workspace --all-features` when nextest is not installed) + G4 `cargo test --workspace --doc` |
-| `deps` | G7 `cargo deny check`, `cargo audit`, `cargo machete` |
-| `unsafe` | G6 `cargo +nightly miri test` for workspace members whose sources contain `unsafe` |
-
-- A gate whose tool is not installed prints `SKIPPED <gate>: <tool> not installed (install: <command>)`.
-  SKIPPED is never reported as passed.
-- Writes `target/forge/state.json`: level, per-gate result (PASS/FAIL/SKIPPED), git HEAD sha, timestamp.
-- Exit code: 0 all passed or skipped, 1 a gate failed, 2 not a cargo project.
-
-### 3.3 `forge-tools crate-check <name>`
-
-- GET `https://crates.io/api/v1/crates/<name>` with a descriptive `User-Agent` naming the tool and its repository
-  (crates.io requires one; do not put a personal email in it).
-- Print: verdict, newest stable version, last update date, recent downloads, repository URL.
-- Verdicts: `NOT_FOUND` (exit 1), `STALE` (newest stable release older than 18 months: likely unmaintained, worth
-  looking for an alternative; exit 0), `OK` (exit 0). Network failure: `UNKNOWN` (exit 3), never `OK`.
-- HTTP goes through a trait so tests use recorded JSON fixtures. No network in tests.
-
-### 3.4 `forge-tools domains`
-
-- Runs `cargo metadata --format-version 1 --no-deps --offline`, collects declared dependencies of workspace members.
-- Mapping: `clap` → cli; `bevy` → game; `axum` → web; `tauri` → desktop; `leptos`, `yew`, `wasm-bindgen` → wasm;
-  `uniffi` → ffi-mobile; `candle-core`, `burn`, `llama-cpp-2` → ml; `embassy-executor`, `cortex-m` → embedded.
-- Print each detected domain with the skill to load (`rust-domain-<domain>`), whether or not that skill exists yet.
-- For each detected domain, also print the resolved version of its key crate from `Cargo.lock` when present
-  (the crate from the mapping above that matched), so domain skills can pick docs for exactly that version.
-
-### 3.5 `forge-tools hook <event>`
-
-Hook handlers. Read the hook JSON from stdin and answer in the format Claude Code expects.
-Before implementing, read the current Claude Code hooks reference (https://code.claude.com/docs/en/hooks)
-and follow it for input fields, output JSON and exit codes; note in README which doc version was used.
-Every handler exits 0 silently when the working directory is not inside a cargo project.
-
-- `post-edit` (PostToolUse on Edit|Write|MultiEdit): only for `*.rs` files. Run `rustfmt` on the file, then G1
-  for the workspace. On errors, return the compact diag to Claude as feedback. On success, stay silent.
-  Respect a 120 s budget: on timeout report `check deferred`, never block.
-- `stop` (Stop): run `gates full` only if `*.rs` or `Cargo.toml`/`Cargo.lock` changed since the HEAD recorded
-  in the last green `state.json` (or no green state exists). On failure, block with the compact summary as reason.
-  Loop guard: after 3 consecutive blocks in one session (counter in `target/forge/state.json`), let the stop
-  through with a warning that gates are still red.
-- `pre-edit-manifest` (PreToolUse on Edit|Write for files named `Cargo.toml`): apply the proposed change in memory
-  (Edit: replace old_string with new_string; Write: new content), parse before/after with `toml_edit`, and compare
-  all dependency tables (`dependencies`, `dev-dependencies`, `build-dependencies`, `workspace.dependencies`,
-  target-specific tables). Block a new dependency or a changed version with reason
-  `use cargo add <name> after forge-tools crate-check <name>`. Allow feature changes, removals, and anything outside
-  dependency tables. Allow a git dependency only when the line carries the comment `# forge: allow-git`.
-
-### 3.6 `forge-tools models set --strong <fable|opus> [--plugin-root <path>]`
-
-Rewrites the `model:` frontmatter value of the strong-tier agents (crate-architect, reviewer, unsafe-auditor) and
-touches nothing else in those files. Exists as a fallback for when Fable is unavailable.
-
-## 4. hooks/hooks.json
-
-Wire PostToolUse → `forge-tools hook post-edit`, Stop → `forge-tools hook stop`,
-PreToolUse → `forge-tools hook pre-edit-manifest`, with matchers and timeouts per the hooks reference.
-If `forge-tools` is not on PATH the hooks must fail open (no block); README explains installation.
+- `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`: follow the current Claude Code plugin and
+  marketplace docs (https://code.claude.com/docs/en/plugins). Do not set a `version` field in either file: Claude
+  Code then versions the plugin by commit SHA, so every commit on `main` is a release and marketplace auto-update
+  delivers it. Later stages rely on this.
+- `hooks/hooks.json`: wire PostToolUse → `forge-tools hook post-edit`, Stop → `forge-tools hook stop`,
+  PreToolUse → `forge-tools hook pre-edit-manifest`, with matchers and timeouts per the hooks reference.
+  If `forge-tools` is not on PATH the hooks must fail open (no block); README explains installation.
 
 ## 5. Subagents
 
@@ -189,58 +115,97 @@ Accuracy rule for all skill text: write principles and procedures. Include a con
 if you verified it against docs.rs for a stated version; otherwise leave it out. Wrong API examples in a skill are
 worse than none.
 
-## 7. evals
+## 7. Eval suite (`claude plugin eval`)
 
-`evals/evals.json` in the Skill Factory format (`skill_name`, `evals[]` with `id`, `prompt`, `expected_output`,
-`files`). This stage adds two realistic multi-step evals for the core skill, each with a fixture under
-`evals/fixtures/`:
-1. Fix a crate that fails the borrow checker in several places (fixture has no dependencies and must fail
-   `cargo check` as shipped).
-2. Add a feature that needs a new dependency to a small crate (the expected behaviour is `crate-check` then
-   `cargo add`, never a hand-written version in `Cargo.toml`).
+Read https://code.claude.com/docs/en/plugin-evals before writing cases and follow it for file formats; note the doc
+date in README. Facts from that page this design relies on: each run starts in an empty workspace with a temporary
+HOME; a case seeds files only through `case.yaml` `context.scaffold_script`, which runs only with `--scaffold`;
+`Bash`, `Edit`, `Write` must be granted with `--allow-tools`; granted Bash runs in an OS sandbox where the real home
+directory is unreadable and network reaches only domains granted as `WebFetch(domain:…)`; only allowlisted and
+`EVAL_*` environment variables reach the run.
 
-Later stages append one eval per domain. Fixtures are excluded from the root workspace
-(`exclude = ["evals/fixtures/*", "tools/forge-tools/tests/fixtures/*"]`).
+### 7.1 Case rules
+
+- One directory per case under `evals/`. `prompt.md` body is the user request, phrased the way a person would type
+  it, never naming the skill. Frontmatter sets `tags`, `max_turns`, `timeout_seconds`, `allowed_tools`.
+- A case that needs a project gets `case.yaml` with `context.scaffold_script: scaffold.sh`. `scaffold.sh` writes the
+  whole fixture with heredocs (no reads from the case directory, so it works wherever the runner puts it), runs
+  `git init` and one commit so the run's diff is inspectable, and every fixture `Cargo.toml` contains an empty
+  `[workspace]` table so it never joins another workspace.
+- Every case has at least one grader. Prefer graders that cost nothing (`tool_used`, `tool_order`, `regex`,
+  `file_exists`); add one `llm` grader only where behaviour cannot be checked mechanically.
+- Tags: exactly one of `core`, `trigger`, `domain`; domain cases also carry the domain name.
+
+### 7.2 Cases in this stage
+
+| Case | Tags | What it checks |
+|---|---|---|
+| `core-borrow-fix` | core | Scaffold: a dependency-free crate that fails the borrow checker in at least three places with different error codes. Graders: `rust-forge` skill fired; `forge-tools gates` was run; `llm`: errors fixed by restructuring ownership rather than cloning everywhere, no `unwrap` added |
+| `core-new-dependency` | core | Scaffold: small crate; request needs a JSON library. Graders: `tool_order` `forge-tools crate-check` before `cargo add`; `tool_used` Edit on `Cargo.toml` adding a version: max 0 |
+| `trigger-rust-positive-1..3` | trigger | Three different natural Rust requests (compile error pasted in chat; "add a subcommand"; "why is cargo test slow"). Grader: `rust-forge` skill fired |
+| `trigger-rust-negative-1..2` | trigger | Near misses that must not fire it (a Python script; a Go module's go.mod error). Grader: `tool_used` Skill matching `rust-forge`, min 0, max 0 |
+
+### 7.3 `scripts/plugin-eval.sh`
+
+Wraps `claude plugin eval` so CI, the pipeline and people run the suite the same way. Arguments: plugin path
+(default `.`), then any extra `claude plugin eval` flags (`--case`, `--tag`, `--ablation`, `--json`).
+It always passes `--trust-plugin --scaffold --threshold ${FORGE_EVAL_THRESHOLD:-0.8} --no-publish
+--max-cost-usd ${FORGE_EVAL_MAX_COST:-15}`, pins `--model` and `--judge-model` from `FORGE_EVAL_MODEL` and
+`FORGE_EVAL_JUDGE_MODEL` when set, and grants exactly the tools the cases need, including
+`WebFetch(domain:index.crates.io)`, `WebFetch(domain:static.crates.io)` and `WebFetch(domain:crates.io)` so cargo
+and crate-check can reach crates.io from the sandbox. It exits with `claude plugin eval`'s exit code.
+Trigger cases are meant to run with `--ablation none`: in a two-arm run Skill graders do not count toward the score.
+
+### 7.4 Sandbox spike (do this before writing compile-dependent graders)
+
+The sandbox hides the real home directory, and rustup keeps toolchains in `~/.rustup`, and `forge-tools` is
+installed into `~/.cargo/bin`. Find out, by running `core-borrow-fix` once with
+`scripts/plugin-eval.sh . --case core-borrow-fix --runs 1 --ablation none`, whether `cargo` and `forge-tools` work
+inside a run on macOS. Record the result, the cost of that run, and any working setup (for example a toolchain
+outside the home directory exposed through `PATH`) in README "Evals". If they do not work, keep the graders that
+read the trace (tool calls, gate output) and drop graders that need a successful build; say so in README.
 
 ## 8. Acceptance criteria
 
 All verified by `cargo test --workspace` unless stated. Tests run offline; every cargo invocation in tests on a
-fixture uses `--offline`.
+fixture uses `--offline`. Tests never call `claude`.
 
 - AC-1 `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` pass.
-- AC-2 `diag`: recorded cargo JSON fixtures cover dedupe, ordering, caps with the omitted line, help suffix,
-  rendered blocks for the first 3 errors, non-JSON input lines, exit codes.
-- AC-3 `gates`: on a fixture crate with a formatting error, G0 fails and later gates do not run; on a clean
-  fixture `fast` passes; a missing tool yields SKIPPED, not PASS; `state.json` is written with per-gate results.
-- AC-4 `crate-check`: recorded crates.io responses produce OK, STALE, NOT_FOUND; a transport error produces UNKNOWN.
-- AC-5 `domains`: a fixture workspace with `clap` and `bevy` reports cli and game with skill names and the Bevy
-  version from its `Cargo.lock` (a hand-written lock file is fine); each of the 8 domains is detected from a
-  minimal fixture manifest declaring its key crate.
-- AC-6 `hook pre-edit-manifest`: blocks a new dependency and a version bump, allows a feature change, a removal,
-  a non-dependency edit and a git dependency marked `# forge: allow-git`.
-- AC-7 `hook stop`: blocks on a failing fixture, passes on a clean one, and lets the stop through after 3
-  consecutive blocks.
-- AC-8 `hook` handlers exit 0 with no output outside a cargo project.
-- AC-9 `models set --strong opus` changes only the `model:` line of the three strong agents.
-- AC-10 Structure test, written so later stages reuse it unchanged: plugin.json and hooks.json parse; every agent
-  has name/description/tools/model with model in {fable, opus, sonnet, haiku, inherit}; for every directory under
-  `skills/`: `name` matches the directory, description is 1–1024 chars, every file under its `references/` is
-  mentioned in its SKILL.md, SKILL.md has ≤200 lines for `rust-forge` and ≤150 lines for `rust-domain-*`; no file
-  under `.claude-plugin/`, `agents/`, `commands/`, `hooks/`, `skills/` or in `README.md` contains `TODO`, `TBD`
-  or `[insert`.
-- AC-11 `evals/evals.json` parses, ids are unique, every path in each eval's `files` exists; the borrow-checker
-  fixture fails `cargo check --offline`.
-- AC-12 README: install (`cargo install --path tools/forge-tools`, plugin install), required and optional tools
-  (nextest, cargo-deny, cargo-audit, cargo-machete, miri) with install commands, model tiers and the
-  `models set` fallback, the hooks doc version used, and a "Domains" section listing the domain skills that exist.
+- AC-2–AC-8: specified in `docs/prd/00-core-tools.md` as T-2–T-8; they must still pass.
+- AC-9 `forge-tools models set --strong opus` on a copy of the real `agents/` directory (copied under `target/`)
+  changes only the `model:` line of crate-architect, reviewer and unsafe-auditor.
+- AC-10 Structure test, written so later stages reuse it unchanged:
+  - plugin.json and marketplace.json parse, and neither has a `version` field; hooks.json parses;
+  - every agent has name/description/tools/model with model in {fable, opus, sonnet, haiku, inherit};
+  - for every directory under `skills/`: `name` matches the directory, description is 1–1024 chars, every file
+    under its `references/` is mentioned in its SKILL.md, SKILL.md has ≤200 lines for `rust-forge` and ≤150 lines
+    for `rust-domain-*`;
+  - every `rust-domain-*` skill has frontmatter `metadata.forge-verified` matching `crate=version(,crate=version)*`
+    with exact versions, and each crate is a key crate of that domain in the `forge-tools domains` mapping;
+  - no file under `.claude-plugin/`, `agents/`, `commands/`, `hooks/`, `skills/`, `evals/` or in `README.md`
+    contains `TODO`, `TBD` or `[insert`.
+- AC-11 Eval suite test, reused unchanged by later stages: every directory under `evals/` (except `results/`) that
+  holds `prompt.md` or `case.yaml` has at least one `graders/*.md`; `prompt.md` frontmatter uses only keys
+  documented for `prompt.md`; every grader's `type` is one of regex, tool_used, tool_order, file_exists, llm,
+  baseline; every `tool_used` grader on `Skill` names an existing skill directory; every case has exactly one of the
+  tags core/trigger/domain; every `scaffold_script` named in a `case.yaml` exists and passes `bash -n`; there are at
+  least 3 positive and 2 negative trigger cases.
+- AC-12 Running `core-borrow-fix/scaffold.sh` in a temp dir produces a crate that fails `cargo check --offline` with
+  at least three distinct error codes; running `core-new-dependency/scaffold.sh` produces a crate that passes it.
+- AC-13 README: install (`cargo install --path tools/forge-tools`, adding this repo as a marketplace and installing
+  the plugin), enabling marketplace auto-update, required and optional tools (nextest, cargo-deny, cargo-audit,
+  cargo-machete, miri) with install commands, model tiers and the `models set` fallback, the hooks doc version used,
+  "Evals" (how to run `scripts/plugin-eval.sh`, cost note, the spike result from §7.4), and a "Domains" section
+  listing the domain skills that exist.
 
 ## 9. Out of scope
 
-`rust-domain-*` skills (later stages); own orchestrator or task queue; MCP server; loki-mode integration code;
-gates G5 (cargo-hack) and G8 (semver-checks); perf and release agents; Windows support; publishing to a marketplace.
+`rust-domain-*` skills (later stages); CI workflows, drift checks and automerge (`09-automation.md`); journal and
+retro (`10-journal.md`); own orchestrator or task queue; MCP server; loki-mode integration code; gates G5
+(cargo-hack) and G8 (semver-checks); perf and release agents; Windows support.
 
 ## 10. Constraints
 
 - No network access in tests; no writes outside the repo and `target/` in tests.
-- Do not commit `target/`.
+- Do not commit `target/` or `evals/results/`.
 - Keep files minimal: no sections or options beyond this PRD.

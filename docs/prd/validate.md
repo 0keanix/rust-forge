@@ -6,7 +6,7 @@ default.
 
 ## Do
 
-1. Read `{{TARGET_PRD}}` in full. For a domain PRD, also read sections 6, 8 and 10 of `docs/prd/00-core.md`.
+1. Read `{{TARGET_PRD}}` in full. For any later PRD, also read sections 6, 7, 8 and 10 of `docs/prd/00-core.md`.
 2. Run `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings` and
    `cargo test --workspace`. Record the results.
 3. For every acceptance criterion in the target PRD, find the test that proves it and read that test. A criterion
@@ -21,9 +21,13 @@ default.
    - line budgets; no `TODO`, `TBD`, `[insert`;
    - every concrete crate, API name, attribute, CLI flag or code example: verify it on docs.rs, the crate's
      official docs or its repository for the version the text states (or the newest version if none is stated).
-     Fix or delete any claim you cannot verify. A wrong API example in a skill is worse than none.
-6. Fix defects with the smallest change. Do not add features, options or refactors beyond the target PRD.
-7. Write `docs/validation/{{STAGE}}.md` and commit it with the fixes.
+     Fix or delete any claim you cannot verify. A wrong API example in a skill is worse than none;
+   - `metadata.forge-verified` names the versions the text was actually checked against.
+6. Check every eval case the target PRD adds or changes: graders test the behaviour the PRD asks for, and none would
+   pass on a run that did nothing (for example a positive case whose only grader is `max: 0`). If the PRD asked for
+   a single run of the case, confirm the README row exists.
+7. Fix defects with the smallest change. Do not add features, options or refactors beyond the target PRD.
+8. Write `docs/validation/{{STAGE}}.md` and commit it with the fixes.
 
 ## Report format (`docs/validation/{{STAGE}}.md`)
 
