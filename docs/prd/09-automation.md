@@ -1,7 +1,7 @@
 # PRD 09: rust-forge — self-update: drift check, eval gate, CI and automerge
 
 Builds on `00-core-tools.md`, `00-core.md` and the domain stages `01`–`08` (all implemented). Read `00-core.md`
-§4, §7 and §8 first.
+§4, §7, §8 and §10 first.
 
 ## 1. Goal
 
@@ -128,7 +128,7 @@ All verified by `cargo test --workspace`, offline, unless stated. Tests never ca
   version, and no `{{` placeholders remain.
 - A-3 `automerge-check`: one test per rule in §4 for each kind it applies to, on temporary git repositories, plus a
   happy path for each kind.
-- A-4 `forge-gate.sh` with a stub `claude` placed first on `PATH` (returns canned JSON and exit codes) covers: happy
+- A-4 `forge-gate.sh` on a temporary git repository, with a stub `claude` placed first on `PATH` (returns canned JSON and exit codes) covers: happy
   path (exit 0); a new retro case that already passes on base (exit 1); head below threshold (exit 1); head overall
   score below base minus tolerance (exit 1); eval exit 2 (gate exit 1); a policy violation stops before any eval.
 - A-5 Workflow files parse as YAML; `forge-auto.yml` checks that the head repository equals the base repository and

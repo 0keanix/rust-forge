@@ -1,8 +1,8 @@
 # PRD 03: rust-forge — domain skill `rust-domain-ffi-mobile`
 
 Builds on the core stages (`docs/prd/00-core-tools.md`, `docs/prd/00-core.md`, already implemented) and on
-earlier domain stages. Read `00-core.md` §6–§8 first: they define the skill rules, the eval case format and the
-structure tests this stage must pass.
+earlier domain stages. Read `00-core.md` §6–§8 and §10 first: they define the skill rules, the eval case format,
+the structure tests this stage must pass and where tests may write.
 Add exactly one domain skill. Do not change forge-tools behaviour, hooks, agents, the core skill or other
 domain skills; the only edits outside the new skill are the ones listed under Deliver.
 

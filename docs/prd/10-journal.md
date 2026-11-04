@@ -1,6 +1,6 @@
 # PRD 10: rust-forge — self-improvement: journal and retro
 
-Builds on all earlier stages. Read `00-core.md` §7–§8 and `09-automation.md` §4–§6 first: retro produces
+Builds on all earlier stages. Read `00-core.md` §7, §8, §10 and `09-automation.md` §4–§6 first: retro produces
 `forge-auto:retro` pull requests that the gate from stage 09 judges and may merge automatically.
 
 ## 1. Goal

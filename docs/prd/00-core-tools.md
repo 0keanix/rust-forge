@@ -140,6 +140,9 @@ Plugin files (`.claude-plugin/`, `hooks/`, `agents/`, `commands/`, `skills/`, `e
 
 ## 6. Constraints
 
-- No network access in tests; no writes outside the repo and `target/` in tests.
+- No network access in tests. Tests write only into a fresh directory under the system temp directory
+  (`std::env::temp_dir()`) and remove it afterwards; they never write inside the repository, `target/` included.
+  loki treats manifests that appear in the tree during a run as changed test configuration and will not verify
+  the run. This rule applies to every later stage.
 - Do not commit `target/`.
 - Keep files minimal: no subcommands or options beyond this PRD.
