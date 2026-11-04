@@ -1,0 +1,25 @@
+{
+ "crate": {
+  "id": "old-crate",
+  "name": "old-crate",
+  "max_stable_version": "0.3.1",
+  "max_version": "0.3.1",
+  "newest_version": "0.3.1",
+  "updated_at": "2022-03-01T10:00:00.000000+00:00",
+  "recent_downloads": 42,
+  "downloads": 420,
+  "repository": "https://github.com/example/old-crate"
+ },
+ "versions": [
+  {
+   "num": "0.3.1",
+   "created_at": "2022-03-01T10:00:00.000000+00:00",
+   "yanked": false
+  },
+  {
+   "num": "0.0.1",
+   "created_at": "2015-01-01T00:00:00.000000+00:00",
+   "yanked": false
+  }
+ ]
+}
