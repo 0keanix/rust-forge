@@ -26,7 +26,9 @@ A validation stage `v-<x>` uses a PRD built from the template:
 
 ## Model policy
 
-- Implement and fix run on Opus 5.5: every run gets `--model claude-opus-5-5`.
+- Implement and fix run on Opus 5.5: every `loki route` and `loki start` gets the environment variable
+  `LOKI_CLAUDE_MODEL_DEVELOPMENT=claude-opus-5-5`. Do not pass `--model`: loki 10 rejects it in `loki route`, and in
+  `loki start` it becomes `LOKI_MODEL_OVERRIDE`, which pins every step, not only implement and fix.
 - Every other step (intake, plan, Wall, already-done check, review) keeps whatever loki chooses, but the owner sees
   it before the run (step 2) and after it (report).
 
@@ -34,15 +36,16 @@ A validation stage `v-<x>` uses a PRD built from the template:
 
 1. **Check.** On `main`, working tree clean, `main` equals `origin/main`, the previous stage in the table was
    accepted (except `tools`). If not, say what is wrong and stop.
-2. **Plan.** Run `LOKI_SPEED=0 loki route start <prd> --no-pr --max-cost <cap> --deep --model claude-opus-5-5`.
+2. **Plan.** Run `LOKI_SPEED=0 LOKI_CLAUDE_MODEL_DEVELOPMENT=claude-opus-5-5 loki route start <prd> --no-pr
+   --max-cost <cap> --deep`.
    `loki route` prints the route and exits without running anything; it is the only loki command allowed to take a
    PRD outside step 3. Show the owner: the PRD, the cap, the flags, and a table of every step with the model loki
    will use and why (pin, router, default). Say plainly if anything differs from the model policy, or if the run
    would be split into parallel units. Then wait for "go".
 3. **Run** (only after "go"). Record the base: `mkdir -p target/stages && git rev-parse HEAD >
    target/stages/<stage>.base && touch target/stages/<stage>.started`. Start in the background:
-   `LOKI_AUTO_CONFIRM=true LOKI_SPEED=0 loki start <prd> --no-pr --max-cost <cap> --deep --model claude-opus-5-5
-   > target/stages/<stage>.log 2>&1`.
+   `LOKI_AUTO_CONFIRM=true LOKI_SPEED=0 LOKI_CLAUDE_MODEL_DEVELOPMENT=claude-opus-5-5 loki start <prd> --no-pr
+   --max-cost <cap> --deep > target/stages/<stage>.log 2>&1`.
    Read the first lines of the log after a minute and confirm the start line matches the plan from step 2; if it
    does not, tell the owner at once.
 4. **While it runs.** Do not edit any file in the repository, do not run git commands that change refs, do not
@@ -88,5 +91,4 @@ A validation stage `v-<x>` uses a PRD built from the template:
 
 - `LOKI_SPEED=0` (one sequential run per PRD instead of parallel units) comes from loki 11.125 source, not its docs;
   step 2 shows whether it took effect.
-- Branches `salvage/*` and `loki/e10-20261104T115558Z-1d83` are kept as references from earlier attempts; do not
-  merge them.
+- Branch `loki/e10-20261104T115558Z-1d83` is kept as a reference from an earlier attempt; do not merge it.
