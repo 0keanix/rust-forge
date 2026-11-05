@@ -113,6 +113,13 @@ per core case. Findings, and the setup the wrapper and the cases now use:
 - CI: `claude plugin eval` works on a GitHub runner with a `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`. There
   the default model was Sonnet while it was Opus locally, so set `FORGE_EVAL_MODEL` when scores must be comparable.
 
+| Case | Date | Command | Score | Cost |
+|---|---|---|---|---|
+| `domain-cli` | 2026-11-06 | `scripts/plugin-eval.sh . --case domain-cli --runs 1 --ablation none` | 0.50 (skill fired; `llm` grader FAIL) | $0.64 |
+
 ## Domains
 
-Domain skills (`rust-domain-*`) are loaded by the domain that `forge-tools domains` detects. None exist yet.
+Domain skills (`rust-domain-*`) are loaded by the domain that `forge-tools domains` detects.
+
+- `rust-domain-cli` (domain `cli`, key crate `clap`): clap derive, config layering, errors and exit codes, human
+  and `--json` output, binary tests with `assert_cmd` and `predicates`.
