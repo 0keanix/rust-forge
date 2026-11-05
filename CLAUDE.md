@@ -91,4 +91,24 @@ A validation stage `v-<x>` uses a PRD built from the template:
 
 - `LOKI_SPEED=0` (one sequential run per PRD instead of parallel units) comes from loki 11.125 source, not its docs;
   step 2 shows whether it took effect.
-- Branch `loki/e10-20261104T115558Z-1d83` is kept as a reference from an earlier attempt; do not merge it.
+
+### Known loki 11.125 behaviour
+
+Established from loki source and confirmed by the events of run `e10-20261104T132021Z-6232` (stage tools). Use it
+in step 2 and in reports instead of re-reading loki source; re-check the source only if `loki route` or the start
+line contradicts it.
+
+- `loki route` prints only engine, adapter and the final model. With `LOKI_CLAUDE_MODEL_DEVELOPMENT=claude-opus-5-5`
+  and `LOKI_ROUTER` unset (router off) the steps are: intake project-model on claude-sonnet-5-5; already-done check
+  does not run for a PRD file (only with `LOKI_E10_ALREADY_DONE_CHECK=1`); plan is skipped when the task is sized
+  normal; Wall is written by claude-sonnet-5-5 in parallel with implement; implement and fix on claude-opus-5-5.
+- Wall tests are TypeScript. loki may discard them (for example for referencing paths that do not exist yet); then
+  loki itself proved nothing and the evidence is the implementer's tests plus our gates.
+- The cross-review in seal runs only when the verdict is VERIFIED, so a PARTIAL run has had no reviewer.
+- PARTIAL (exit code 6) is expected when a stage creates or changes any `Cargo.toml` ("test configuration changed",
+  "runner config changed") and when a PRD has more than 40 acceptance clauses. It says nothing about code quality;
+  the report and our gates decide.
+- "no tests executed" in NOT PROVEN can appear even when loki's own `cargo test` passed (empty `test_counts`).
+- With the router off the receipt has no route block: take models and cost per step from
+  `.loki/runs/<run-id>/events.jsonl` and `cost.per_model` in the receipt.
+- With `--no-pr`, `--deep` only raises time limits (run 2700 s, implement 1800 s); the deep verify pass needs a PR.
