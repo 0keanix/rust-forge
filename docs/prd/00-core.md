@@ -136,10 +136,12 @@ directory is unreadable and network reaches only domains granted as `WebFetch(do
   `file_exists`); add one `llm` grader only where behaviour cannot be checked mechanically.
 - Tags: exactly one of `core`, `trigger`, `domain`; domain cases also carry the domain name.
 - Bash inside a run is sandboxed and cannot run cargo, while the plugin's hooks run outside the sandbox (README
-  "Evals"). A case that must prove the code builds uses a `regex` grader on the file `target/forge/state.json`,
-  written by the Stop hook's `gates full`, requiring `"G3-test": "PASS"` and `"green": true`; its `prompt.md` sets
-  `append_system_prompt` to say that cargo cannot run in Bash and that the hooks report compiler results.
-  `cargo add` cannot run in a run either, so a case about adding a dependency checks the policy only.
+  "Evals"). Every case whose scaffold creates a Rust project sets `append_system_prompt` in its `prompt.md` to say
+  that cargo cannot run in Bash and that the hooks report compiler results; without it the agent spends turns on the
+  sandbox and the `llm` judge reads that noise as failure. A case that must prove the code builds uses a `regex`
+  grader on the file `target/forge/state.json`, written by the Stop hook's `gates full`, requiring
+  `"G3-test": "PASS"` and `"green": true`. `cargo add` cannot run in a run either, so a case about adding a
+  dependency checks the policy only.
 
 ### 7.2 Cases in this stage
 
