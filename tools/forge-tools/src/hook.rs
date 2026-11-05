@@ -141,7 +141,10 @@ fn changed_since(root: &Path, head: &str) -> bool {
 
 fn stop(root: &Path, input: &Value) -> Result<Option<Value>> {
     let state = util::load_state(root);
-    let last_green = state["last_green"]["head"].as_str();
+    // Only a green `full` run vouches for the tests; `fast` or all-SKIPPED `deps` do not.
+    let last_green = (state["last_green"]["level"] == "full")
+        .then(|| state["last_green"]["head"].as_str())
+        .flatten();
     let needs_run = match last_green {
         Some(head) => changed_since(root, head),
         None => true,
