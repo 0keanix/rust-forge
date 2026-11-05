@@ -101,7 +101,9 @@ line contradicts it.
 - `loki route` prints only engine, adapter and the final model. With `LOKI_CLAUDE_MODEL_DEVELOPMENT=claude-opus-5-5`
   and `LOKI_ROUTER` unset (router off) the steps are: intake project-model on claude-sonnet-5-5; already-done check
   does not run for a PRD file (only with `LOKI_E10_ALREADY_DONE_CHECK=1`); plan is skipped when the task is sized
-  normal; Wall is written by claude-sonnet-5-5 in parallel with implement; implement and fix on claude-opus-5-5.
+  normal, and when loki sizes it large plan runs on claude-opus-5-5 although the start line says "plan sonnet (fast
+  tier)" (stage core); Wall is written by claude-sonnet-5-5 in parallel with implement and is killed after 180 s
+  (stage core); implement and fix on claude-opus-5-5.
 - Wall tests are TypeScript. loki may discard them (for example for referencing paths that do not exist yet); then
   loki itself proved nothing and the evidence is the implementer's tests plus our gates.
 - The cross-review in seal runs only when the verdict is VERIFIED, so a PARTIAL run has had no reviewer.

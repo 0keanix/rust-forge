@@ -11,3 +11,5 @@ value or using an index before mutating, splitting or narrowing borrows, or a st
 elements), the behaviour of each function is unchanged, and no `unwrap()` or `expect()` was added to non-test code.
 FAIL if the fix relies on adding `clone()` in most places, changes what the functions return, adds `unwrap()` or
 `expect()` outside tests, or weakens or deletes the tests.
+FAIL as well if the trace does not show the crate compiling and its tests passing after the change (for example
+`PASS G3-test` from `forge-tools gates full`, or `test result: ok` from `cargo test`): reading the code is not enough.
