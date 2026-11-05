@@ -61,3 +61,11 @@ facts in the code.
   embedding `versions` by default, every crate would become STALE. Only the recorded fixtures test this.
 - The stop "changed since HEAD" check relies on `git`; outside a git repo it always runs the gates (safe default, untested).
 - The task asked to commit the report with the fixes; the harness forbids commits in this session, so the changes are left uncommitted.
+  (Owner review: loki committed them as 89cff85.)
+
+## Gaps found in owner review (for the final stage)
+- `crate-check` exit codes (§3.3: NOT_FOUND exit 1, UNKNOWN exit 3, OK/STALE exit 0) are not tested through the
+  binary; the T-4 tests call the library `check()` only. Add tests that run the built binary against recorded
+  responses and assert the process exit code.
+- `hook pre-edit-manifest` (§3.5) must compare `workspace.dependencies` and `build-dependencies` too; the T-6 tests
+  cover `dependencies`, `dev-dependencies` and a target-specific table only. Add a block case for each of the two.
