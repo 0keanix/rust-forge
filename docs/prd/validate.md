@@ -11,7 +11,9 @@ default.
    `cargo test --workspace`. Record the results.
 3. For every acceptance criterion in the target PRD, find the test that proves it and read that test. A criterion
    counts as covered only if the test would fail when the behaviour is broken. If a test is missing or too weak,
-   add or strengthen it; it must fail before your fix and pass after.
+   add or strengthen it; it must fail before your fix and pass after. Also check that every behaviour the target
+   PRD specifies in its sections (not only in its acceptance criteria list) is covered by such a test; add the
+   missing ones.
 4. Look for tests that were weakened or bypassed in the implementation commits since the previous validation report
    (`git log`, `git diff` on test files): `#[ignore]`, deleted or loosened assertions, `#[allow]` without a reason,
    fixtures edited to make a test pass. Restore what was weakened.
