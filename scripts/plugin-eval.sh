@@ -5,10 +5,10 @@
 # `claude plugin eval` refuses a plugin directory that contains hard links, and cargo fills `target/` with them,
 # so the suite runs on a clean copy of the plugin without `target/`, `.git` and `.loki`.
 #
-# Cases that compile Rust need a toolchain the eval sandbox can read. On macOS it cannot: the sandbox blocks loading
-# rustc's libraries from anywhere under /Users, and cargo cannot write its registry cache (README "Evals").
-# Those cases are meant to run in Linux CI with the toolchain and forge-tools installed outside the home directory
-# and on PATH.
+# Sandboxed Bash in a run cannot build Rust (README "Evals"), but the plugin's hooks run outside the sandbox: post-edit
+# runs `cargo check` and Stop runs `gates full`, which records the result in target/forge/state.json for the graders.
+# A run gets a temporary HOME, so rustup proxies find no toolchain; the active toolchain's own bin directory goes
+# first on PATH instead. forge-tools must be on PATH as well.
 set -uo pipefail
 
 plugin="."
@@ -51,5 +51,6 @@ args+=(
 
 # The target comes before --allow-tools; extra flags such as --case, --tag, --ablation and --json
 # follow it as separate options.
-claude "${args[@]}" "$@"
+toolchain_bin="$(rustc --print sysroot)/bin" || exit 2
+PATH="$toolchain_bin:$PATH" claude "${args[@]}" "$@"
 exit $?

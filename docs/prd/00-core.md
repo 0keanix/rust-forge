@@ -135,12 +135,17 @@ directory is unreadable and network reaches only domains granted as `WebFetch(do
 - Every case has at least one grader. Prefer graders that cost nothing (`tool_used`, `tool_order`, `regex`,
   `file_exists`); add one `llm` grader only where behaviour cannot be checked mechanically.
 - Tags: exactly one of `core`, `trigger`, `domain`; domain cases also carry the domain name.
+- Bash inside a run is sandboxed and cannot run cargo, while the plugin's hooks run outside the sandbox (README
+  "Evals"). A case that must prove the code builds uses a `regex` grader on the file `target/forge/state.json`,
+  written by the Stop hook's `gates full`, requiring `"G3-test": "PASS"` and `"green": true`; its `prompt.md` sets
+  `append_system_prompt` to say that cargo cannot run in Bash and that the hooks report compiler results.
+  `cargo add` cannot run in a run either, so a case about adding a dependency checks the policy only.
 
 ### 7.2 Cases in this stage
 
 | Case | Tags | What it checks |
 |---|---|---|
-| `core-borrow-fix` | core | Scaffold: a dependency-free crate that fails the borrow checker in at least three places with different error codes. Graders: `rust-forge` skill fired; `forge-tools gates` was run; `llm`: errors fixed by restructuring ownership rather than cloning everywhere, no `unwrap` added |
+| `core-borrow-fix` | core | Scaffold: a dependency-free crate that fails the borrow checker in at least three places with different error codes. Graders: `rust-forge` skill fired; the Stop hook's `gates full` ended green (`state.json`); `llm`: errors fixed by restructuring ownership rather than cloning everywhere, no `unwrap` added |
 | `core-new-dependency` | core | Scaffold: small crate; request needs a JSON library. Graders: `tool_order` `forge-tools crate-check` before `cargo add`; `tool_used` Edit on `Cargo.toml` adding a version: max 0 |
 | `trigger-rust-positive-1..3` | trigger | Three different natural Rust requests (compile error pasted in chat; "add a subcommand"; "why is cargo test slow"). Grader: `rust-forge` skill fired |
 | `trigger-rust-negative-1..2` | trigger | Near misses that must not fire it (a Python script; a Go module's go.mod error). Grader: `tool_used` Skill matching `rust-forge`, min 0, max 0 |
@@ -156,14 +161,11 @@ It always passes `--trust-plugin --scaffold --threshold ${FORGE_EVAL_THRESHOLD:-
 and crate-check can reach crates.io from the sandbox. It exits with `claude plugin eval`'s exit code.
 Trigger cases are meant to run with `--ablation none`: in a two-arm run Skill graders do not count toward the score.
 
-### 7.4 Sandbox spike (do this before writing compile-dependent graders)
+### 7.4 Sandbox spike
 
-The sandbox hides the real home directory, and rustup keeps toolchains in `~/.rustup`, and `forge-tools` is
-installed into `~/.cargo/bin`. Find out, by running `core-borrow-fix` once with
-`scripts/plugin-eval.sh . --case core-borrow-fix --runs 1 --ablation none`, whether `cargo` and `forge-tools` work
-inside a run on macOS. Record the result, the cost of that run, and any working setup (for example a toolchain
-outside the home directory exposed through `PATH`) in README "Evals". If they do not work, keep the graders that
-read the trace (tool calls, gate output) and drop graders that need a successful build; say so in README.
+Done on 2026-11-05 by the owner; the results and the setup that came out of them (clean copy of the plugin, the
+toolchain's own bin directory on `PATH`, compile evidence through the Stop hook) are in README "Evals" and
+`scripts/plugin-eval.sh`.
 
 ## 8. Acceptance criteria
 
