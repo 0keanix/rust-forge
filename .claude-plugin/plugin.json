@@ -1,0 +1,11 @@
+{
+  "name": "rust-forge",
+  "description": "Rust development layer for Claude Code: cargo quality gates enforced by hooks, compact compiler diagnostics, crate verification, Rust subagents and a core skill.",
+  "author": {
+    "name": "Ilia Denisov"
+  },
+  "homepage": "https://github.com/0keanix/rust-forge",
+  "repository": "https://github.com/0keanix/rust-forge",
+  "license": "MIT",
+  "keywords": ["rust", "cargo", "clippy", "hooks"]
+}

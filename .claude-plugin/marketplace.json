@@ -1,0 +1,13 @@
+{
+  "name": "rust-forge",
+  "owner": {
+    "name": "Ilia Denisov"
+  },
+  "plugins": [
+    {
+      "name": "rust-forge",
+      "source": "./",
+      "description": "Rust development layer for Claude Code: cargo gates, compact diagnostics, crate verification, Rust subagents."
+    }
+  ]
+}

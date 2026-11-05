@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v forge-tools >/dev/null 2>&1 || exit 0; forge-tools hook pre-edit-manifest",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v forge-tools >/dev/null 2>&1 || exit 0; forge-tools hook post-edit",
+            "timeout": 180
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v forge-tools >/dev/null 2>&1 || exit 0; forge-tools hook stop",
+            "timeout": 900
+          }
+        ]
+      }
+    ]
+  }
+}
