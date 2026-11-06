@@ -42,8 +42,9 @@ their `--help` and documentation for the installed version before running them.
 - Use UDL only when the project already does, or the pinned version lacks a feature you need in proc-macros. A UDL
   project keeps a `.udl` file, generates scaffolding from a build script with the `build` feature, and pulls it in
   with `uniffi::include_scaffolding!`. Do not mix the two styles for one type.
-- Generate bindings in library mode from the built `cdylib` (`generate --library <lib> --language kotlin|swift
-  --out-dir <dir>`), through a small `uniffi-bindgen` binary that calls `uniffi::uniffi_bindgen_main()` with the
+- Generate bindings in library mode from the built `cdylib` (`generate <lib> --language kotlin|swift
+  --out-dir <dir>`; in 0.32 a library path is detected and `--library` is deprecated), through a small
+  `uniffi-bindgen` binary that calls `uniffi::uniffi_bindgen_main()` with the
   `cli` feature, as the user guide for the version describes. Library mode reads the metadata compiled into the
   library, so the bindings match the code that ships.
 - Generated Kotlin and Swift files are build outputs. Regenerate them in the build script or documented commands
