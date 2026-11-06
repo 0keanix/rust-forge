@@ -126,3 +126,6 @@ Domain skills (`rust-domain-*`) are loaded by the domain that `forge-tools domai
   and `--json` output, binary tests with `assert_cmd` and `predicates`.
 - `rust-domain-game` (domain `game`, key crate `bevy`): Bevy ECS, plugins, schedules and ordering, states, assets,
   `dynamic_linking` in dev builds, headless `App` tests, migration one version at a time.
+- `rust-domain-ffi-mobile` (domain `ffi-mobile`, key crate `uniffi`): thin FFI crate over a pure core, UniFFI
+  proc-macro or UDL, cbindgen headers, error and ownership mapping, cargo-ndk and XCFramework builds, host versus
+  device checks.
