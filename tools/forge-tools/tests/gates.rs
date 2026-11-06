@@ -86,3 +86,27 @@ fn missing_tool_is_skipped_not_passed() {
         serde_json::json!({ "G7-deny": "SKIPPED", "G7-audit": "SKIPPED", "G7-machete": "SKIPPED" })
     );
 }
+
+#[test]
+fn bin_only_crate_skips_doctests_and_stays_green() {
+    let dir = TempDir::new("gates-bin");
+    common::write(
+        &dir.path().join("Cargo.toml"),
+        "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\n",
+    );
+    common::write(
+        &dir.path().join("src").join("main.rs"),
+        "fn main() {\n    println!(\"{}\", double(2));\n}\n\nfn double(x: u32) -> u32 {\n    x * 2\n}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn doubles() {\n        assert_eq!(super::double(2), 4);\n    }\n}\n",
+    );
+    let out = run(&["gates", "full"], dir.path(), "");
+    let text = stdout(&out);
+    assert_eq!(out.status.code(), Some(0), "{text}");
+    assert!(text.contains("PASS G3-test\n"), "{text}");
+    assert!(
+        text.contains("SKIPPED G4-doctest: no library target in the workspace\n"),
+        "{text}"
+    );
+    let s = state(dir.path());
+    assert_eq!(s["gates"]["G4-doctest"], "SKIPPED");
+    assert_eq!(s["green"], true);
+}

@@ -63,6 +63,8 @@ struct Gate {
     tool: Option<&'static str>,
     install: &'static str,
     json: bool,
+    /// Reported as SKIPPED with this reason instead of running.
+    skip: Option<&'static str>,
 }
 
 fn gate(name: &str, args: &[&str], tool: &'static str, install: &'static str, json: bool) -> Gate {
@@ -72,6 +74,7 @@ fn gate(name: &str, args: &[&str], tool: &'static str, install: &'static str, js
         tool: Some(tool),
         install,
         json,
+        skip: None,
     }
 }
 
@@ -115,7 +118,7 @@ fn fast_gates() -> Vec<Gate> {
     ]
 }
 
-fn test_gates() -> Vec<Gate> {
+fn test_gates(root: &Path) -> Vec<Gate> {
     let tests = if util::on_path("cargo-nextest") {
         gate(
             "G3-test",
@@ -133,16 +136,17 @@ fn test_gates() -> Vec<Gate> {
             false,
         )
     };
-    vec![
-        tests,
-        gate(
-            "G4-doctest",
-            &["test", "--workspace", "--doc"],
-            "cargo",
-            "https://rustup.rs",
-            false,
-        ),
-    ]
+    let mut doctests = gate(
+        "G4-doctest",
+        &["test", "--workspace", "--doc"],
+        "cargo",
+        "https://rustup.rs",
+        false,
+    );
+    if !has_lib_target(root) {
+        doctests.skip = Some("no library target in the workspace");
+    }
+    vec![tests, doctests]
 }
 
 fn deps_gates() -> Vec<Gate> {
@@ -220,10 +224,46 @@ fn unsafe_gates(root: &Path) -> Vec<Gate> {
                 tool: None,
                 install: "rustup +nightly component add miri",
                 json: false,
+                skip: None,
             });
         }
     }
     gates
+}
+
+/// Whether any workspace member has a library target. Doctests need one: `cargo test --doc` fails on a
+/// binary-only workspace with "no library targets found". If cargo metadata fails, assume there is one so the
+/// gate still runs and reports the real error.
+fn has_lib_target(root: &Path) -> bool {
+    let Ok(out) = Command::new("cargo")
+        .args([
+            "metadata",
+            "--format-version",
+            "1",
+            "--no-deps",
+            "--offline",
+        ])
+        .current_dir(root)
+        .output()
+    else {
+        return true;
+    };
+    let Ok(meta) = serde_json::from_slice::<Value>(&out.stdout) else {
+        return true;
+    };
+    meta["packages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|p| p["targets"].as_array().into_iter().flatten())
+        .flat_map(|t| t["kind"].as_array().into_iter().flatten())
+        .filter_map(Value::as_str)
+        .any(|k| {
+            matches!(
+                k,
+                "lib" | "rlib" | "dylib" | "cdylib" | "staticlib" | "proc-macro"
+            )
+        })
 }
 
 fn miri_installed(root: &Path) -> bool {
@@ -280,7 +320,7 @@ pub fn run(level: Level, dir: &Path) -> Result<Report> {
     };
     let gates = match level {
         Level::Fast => fast_gates(),
-        Level::Full => fast_gates().into_iter().chain(test_gates()).collect(),
+        Level::Full => fast_gates().into_iter().chain(test_gates(&root)).collect(),
         Level::Deps => deps_gates(),
         Level::Unsafe => unsafe_gates(&root),
     };
@@ -295,6 +335,11 @@ pub fn run(level: Level, dir: &Path) -> Result<Report> {
         text.push_str("no workspace member contains unsafe code\n");
     }
     for gate in &gates {
+        if let Some(reason) = gate.skip {
+            text.push_str(&format!("SKIPPED {}: {reason}\n", gate.name));
+            results.push((gate.name.clone(), Outcome::Skipped));
+            continue;
+        }
         let installed = match gate.tool {
             Some(tool) => util::on_path(tool),
             None => miri,
