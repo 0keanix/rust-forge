@@ -465,3 +465,36 @@ fn new_dependency_scaffold_compiles() {
         String::from_utf8_lossy(&out.stderr)
     );
 }
+
+/// Domains whose eval scaffold builds on the host without extra targets or system packages. PRD 00-core §7.1
+/// requires their cases to grade the build from `target/forge/state.json`; the other domains need targets or
+/// system packages the eval host may not have.
+const HOST_BUILD_DOMAINS: &[&str] = &["cli", "game", "web", "ml"];
+
+#[test]
+fn host_buildable_domain_cases_grade_the_build() {
+    for domain in HOST_BUILD_DOMAINS {
+        assert!(
+            MAPPING.iter().any(|(d, _)| d == domain),
+            "{domain} is not a domain in forge-tools domains"
+        );
+        let case = repo().join("evals").join(format!("domain-{domain}"));
+        if !case.is_dir() {
+            continue; // the stage for this domain has not run yet
+        }
+        let grader = case.join("graders").join("gates-pass.md");
+        assert!(
+            grader.is_file(),
+            "{}: PRD 00-core §7.1 requires graders/gates-pass.md",
+            case.display()
+        );
+        let text = read(&grader);
+        for needle in ["type: regex", "target/forge/state.json", "G3-test", "green"] {
+            assert!(
+                text.contains(needle),
+                "{}: missing {needle}",
+                grader.display()
+            );
+        }
+    }
+}

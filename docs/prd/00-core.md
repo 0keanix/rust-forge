@@ -145,7 +145,8 @@ directory is unreadable and network reaches only domains granted as `WebFetch(do
 - The Stop hook is silent when the gates pass, so the trace never shows a passing build. An `llm` rubric must not
   judge whether the code builds or the gates pass; it says that this is graded separately. A domain case whose
   scaffold builds on the host without extra targets or system packages also gets that `state.json` grader as
-  `graders/gates-pass.md`.
+  `graders/gates-pass.md`: the domains cli, game, web and ml. `tests/plugin.rs::host_buildable_domain_cases_grade_the_build`
+  enforces this.
 
 ### 7.2 Cases in this stage
 
