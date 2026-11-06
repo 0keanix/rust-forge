@@ -117,6 +117,7 @@ per core case. Findings, and the setup the wrapper and the cases now use:
 |---|---|---|---|---|
 | `domain-cli` | 2026-11-06 | `scripts/plugin-eval.sh . --case domain-cli --runs 1 --ablation none` | 1.00 (skill fired; gates green; `llm` 3/3 PASS). The first run scored 0.50: G4 failed on a binary-only crate (fixed in 2c58cea) and the rubric asked for a visible gate pass | $0.38 |
 | `domain-game` | 2026-11-06 | `scripts/plugin-eval.sh . --case domain-game --runs 1 --ablation none` | 1.00 (skill fired; gates green; `llm` 3/3 PASS). The stage's own run (also 1.00, $0.43) had no `gates-pass` grader, so it did not show whether the code built. Bevy 0.20.1 from a cold cache: whole run 216 s, Stop-hook `gates full` under 2 min of its 900 s timeout | $0.46 |
+| `domain-ffi-mobile` | 2026-11-06 | `scripts/plugin-eval.sh . --case domain-ffi-mobile --runs 1 --ablation none` | 1.00 (skill fired; gates green on the host; `llm` 3/3 PASS). Not required by §7.1, but the `uniffi` 0.32.2 workspace builds on the host, so the case also grades the build. Fixture `Cargo.lock` pins only `uniffi`; the Stop hook resolved and built the rest within the run: whole run 171 s | $0.39 |
 
 ## Domains
 
