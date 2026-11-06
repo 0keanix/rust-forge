@@ -122,7 +122,15 @@ fn test_gates(root: &Path) -> Vec<Gate> {
     let tests = if util::on_path("cargo-nextest") {
         gate(
             "G3-test",
-            &["nextest", "run", "--workspace", "--all-features"],
+            // nextest fails a run with no tests by default; plain `cargo test` passes it. Keep G3 independent of
+            // which runner is installed.
+            &[
+                "nextest",
+                "run",
+                "--workspace",
+                "--all-features",
+                "--no-tests=warn",
+            ],
             "cargo-nextest",
             "cargo install cargo-nextest --locked",
             false,

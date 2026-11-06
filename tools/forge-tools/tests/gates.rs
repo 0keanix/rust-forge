@@ -110,3 +110,40 @@ fn bin_only_crate_skips_doctests_and_stays_green() {
     assert_eq!(s["gates"]["G4-doctest"], "SKIPPED");
     assert_eq!(s["green"], true);
 }
+
+#[test]
+fn nextest_is_told_that_no_tests_is_not_a_failure() {
+    // cargo-nextest exits 4 when a workspace has no tests unless `--no-tests` says otherwise, while plain
+    // `cargo test` passes; G3 must not depend on which runner is installed. A stub cargo-nextest records its
+    // arguments. cargo looks up subcommands in $CARGO_HOME/bin before PATH, so CARGO_HOME points at the stub too.
+    use std::os::unix::fs::PermissionsExt;
+    let dir = TempDir::new("gates-nextest");
+    write_crate(dir.path(), CLEAN_LIB);
+    let home = TempDir::new("gates-nextest-home");
+    let bin = home.path().join("bin");
+    let args_file = home.path().join("args.txt");
+    let stub = bin.join("cargo-nextest");
+    common::write(
+        &stub,
+        &format!(
+            "#!/bin/sh\necho \"$@\" > '{}'\nexit 0\n",
+            args_file.display()
+        ),
+    );
+    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap());
+    let out = run_env(
+        &["gates", "full"],
+        dir.path(),
+        "",
+        &[
+            ("PATH", &path),
+            ("CARGO_HOME", home.path().to_str().unwrap()),
+        ],
+    );
+    let text = stdout(&out);
+    assert_eq!(out.status.code(), Some(0), "{text}");
+    let args = std::fs::read_to_string(&args_file).unwrap();
+    assert!(args.contains("nextest run"), "{args}");
+    assert!(args.contains("--no-tests=warn"), "{args}");
+}
