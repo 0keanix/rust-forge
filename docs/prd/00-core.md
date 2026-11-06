@@ -142,6 +142,10 @@ directory is unreadable and network reaches only domains granted as `WebFetch(do
   grader on the file `target/forge/state.json`, written by the Stop hook's `gates full`, requiring
   `"G3-test": "PASS"` and `"green": true`. `cargo add` cannot run in a run either, so a case about adding a
   dependency checks the policy only.
+- The Stop hook is silent when the gates pass, so the trace never shows a passing build. An `llm` rubric must not
+  judge whether the code builds or the gates pass; it says that this is graded separately. A domain case whose
+  scaffold builds on the host without extra targets or system packages also gets that `state.json` grader as
+  `graders/gates-pass.md`.
 
 ### 7.2 Cases in this stage
 
