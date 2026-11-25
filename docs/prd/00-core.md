@@ -141,7 +141,9 @@ directory is unreadable and network reaches only domains granted as `WebFetch(do
   sandbox and the `llm` judge reads that noise as failure. A case that must prove the code builds uses a `regex`
   grader on the file `target/forge/state.json`, written by the Stop hook's `gates full`, requiring
   `"G3-test": "PASS"` and `"green": true`. `cargo add` cannot run in a run either, so a case about adding a
-  dependency checks the policy only.
+  dependency checks the policy only. For the same reason a run cannot add a dependency at all (the `pre-edit-manifest`
+  hook denies adding one by hand), so `scaffold.sh` declares every crate, with the features, that the task needs;
+  the case grades how the agent uses them.
 - The Stop hook is silent when the gates pass, so the trace never shows a passing build. An `llm` rubric must not
   judge whether the code builds or the gates pass; it says that this is graded separately. A domain case whose
   scaffold builds on the host without extra targets or system packages also gets that `state.json` grader as

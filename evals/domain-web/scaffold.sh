@@ -10,7 +10,12 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 axum = "0.8.9"
+http-body-util = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.9.1", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tower = { version = "0.5.3", features = ["util"] }
 
 [workspace]
 EOF
@@ -31,7 +36,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "http-body-util",
+ "serde",
+ "serde_json",
+ "sqlx",
  "tokio",
+ "tower",
 ]
 EOF
 cat > src/main.rs <<'EOF'
