@@ -121,6 +121,7 @@ per core case. Findings, and the setup the wrapper and the cases now use:
 | `domain-ml` | 2026-11-25 | `scripts/plugin-eval.sh . --case domain-ml --runs 1 --ablation none` | 1.00 (skill fired; gates green on CPU; `llm` 3/3 PASS). Fixture `Cargo.lock` pins only `candle-core` 0.11.1; the Stop hook resolved and built the rest within the run: whole run 259 s | $0.93 |
 | `domain-web` | 2026-11-25 | `scripts/plugin-eval.sh . --case domain-web --runs 1 --ablation none` | 1.00 (skill fired; gates green; `llm` 3/3 PASS). Run after the scaffold was changed to declare `sqlx`, `serde`, `serde_json`, `tower` and `http-body-util`: a run cannot add a dependency (PRD 00-core §7.1). Fixture `Cargo.lock` pins only `axum` 0.8.9; the Stop hook resolved and built the rest within the run: whole run 135 s | $0.45 |
 | `domain-desktop` | 2026-11-25 | `scripts/plugin-eval.sh . --case domain-desktop --runs 1 --ablation none` | 1.00 (skill fired; gates green on macOS; `llm` 3/3 PASS), run after adding `graders/gates-pass.md`. §7.1 does not require it (the app crate needs WebKitGTK on Linux), but the fixture builds on macOS, where these runs happen. Earlier runs in the stage: 0.50 ($0.36) because the fixture had no `src-tauri/icons/icon.png`, which `generate_context!()` needs, and the tests landed in the app crate rather than the core; the scaffold now writes the icon and the skill asks for core tests; then 1.00 ($0.31, no build grader). Fixture `Cargo.lock` pins only `tauri` 2.12.7 and `tauri-build` 2.7.6: whole run 120 s | $0.32 |
+| `domain-wasm` | 2026-11-26 | `scripts/plugin-eval.sh . --case domain-wasm --runs 1 --ablation none` | 1.00 (skill fired; host gates green; `llm` 3/3 PASS). The fixture declares `leptos` 0.8.23 (`csr`), `wasm-bindgen` 0.2.130 and `wasm-bindgen-test` 0.3.80, and its `Cargo.lock` pins only those; the Stop hook resolved and built the rest on the host. The wasm32 build and the browser test were not run: whole run 144 s | $0.39 |
 
 ## Domains
 
@@ -142,3 +143,6 @@ Domain skills (`rust-domain-*`) are loaded by the domain that `forge-tools domai
 - `rust-domain-desktop` (domain `desktop`, key crate `tauri`): Tauri 2 commands and IPC, least-privilege
   capabilities and permissions, managed state, logic in a Tauri-free core crate, platform build prerequisites, tests
   without a window.
+- `rust-domain-wasm` (domain `wasm`, key crates `leptos`, `yew`, `wasm-bindgen`): `wasm32-unknown-unknown`, Leptos
+  and Yew client-side rendering, trunk builds, feature-gating dependencies that do not build for wasm, logic in a
+  shared crate tested on the host, `wasm-bindgen-test` for browser-only behaviour.
