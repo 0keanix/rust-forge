@@ -47,7 +47,8 @@ The API and feature names below were checked against candle-core and candle-nn 0
 
 - Accelerators are cargo features, not runtime switches: candle-core and candle-nn have `metal`, `cuda`, `mkl` and
   `accelerate`; burn has backend features such as `ndarray`, `cpu`, `wgpu`, `metal` and `cuda`; llama-cpp-2 has
-  `metal`, `cuda` and `vulkan`. The defaults build CPU only.
+  `metal`, `cuda` and `vulkan`. candle and llama-cpp-2 build for CPU by default; burn's default features enable
+  no backend, so enable one explicitly (`ndarray` or `cpu` for CPU).
 - Expose them as features of your own crate (for example `metal = ["candle-core/metal", "candle-nn/metal"]`) and
   never enable them by default. A default GPU feature breaks the build on every machine without that SDK, including
   CI.
