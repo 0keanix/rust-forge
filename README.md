@@ -120,6 +120,7 @@ per core case. Findings, and the setup the wrapper and the cases now use:
 | `domain-ffi-mobile` | 2026-11-06 | `scripts/plugin-eval.sh . --case domain-ffi-mobile --runs 1 --ablation none` | 1.00 (skill fired; gates green on the host; `llm` 3/3 PASS). Not required by §7.1, but the `uniffi` 0.32.2 workspace builds on the host, so the case also grades the build. Fixture `Cargo.lock` pins only `uniffi`; the Stop hook resolved and built the rest within the run: whole run 171 s | $0.39 |
 | `domain-ml` | 2026-11-25 | `scripts/plugin-eval.sh . --case domain-ml --runs 1 --ablation none` | 1.00 (skill fired; gates green on CPU; `llm` 3/3 PASS). Fixture `Cargo.lock` pins only `candle-core` 0.11.1; the Stop hook resolved and built the rest within the run: whole run 259 s | $0.93 |
 | `domain-web` | 2026-11-25 | `scripts/plugin-eval.sh . --case domain-web --runs 1 --ablation none` | 1.00 (skill fired; gates green; `llm` 3/3 PASS). Run after the scaffold was changed to declare `sqlx`, `serde`, `serde_json`, `tower` and `http-body-util`: a run cannot add a dependency (PRD 00-core §7.1). Fixture `Cargo.lock` pins only `axum` 0.8.9; the Stop hook resolved and built the rest within the run: whole run 135 s | $0.45 |
+| `domain-desktop` | 2026-11-25 | `scripts/plugin-eval.sh . --case domain-desktop --runs 1 --ablation none` | 1.00 (skill fired; `llm` 3/3 PASS). No `gates-pass` grader: the app crate needs WebKitGTK on Linux (§7.1). The first run scored 0.50 ($0.36): the fixture had no `src-tauri/icons/icon.png`, which `generate_context!()` needs, and the tests landed in the app crate rather than the core; the scaffold now writes the icon and the skill asks for core tests. Fixture `Cargo.lock` pins only `tauri` 2.12.7 and `tauri-build` 2.7.6: whole run 126 s | $0.31 |
 
 ## Domains
 
@@ -138,3 +139,6 @@ Domain skills (`rust-domain-*`) are loaded by the domain that `forge-tools domai
 - `rust-domain-web` (domain `web`, key crate `axum`): axum routing and typed extractors, shared state without
   `Arc<Mutex<_>>`, error types mapped to responses, tower layers, sqlx migrations and offline query data, graceful
   shutdown, `tracing`, router tests without binding a port.
+- `rust-domain-desktop` (domain `desktop`, key crate `tauri`): Tauri 2 commands and IPC, least-privilege
+  capabilities and permissions, managed state, logic in a Tauri-free core crate, platform build prerequisites, tests
+  without a window.
