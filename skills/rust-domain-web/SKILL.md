@@ -84,7 +84,9 @@ tracing 0.1.44. For any other version, confirm each name in that version's docs 
 - Never edit a migration that has run anywhere; add a new one. sqlx records checksums and refuses changed files.
 - The checked macros (`query!`, `query_as!`) verify SQL against a database at compile time. To build without one,
   run `cargo sqlx prepare` (with `DATABASE_URL` set and migrations applied) and commit the generated `.sqlx`
-  directory at the workspace root. Rerun it after every query change, or the build will fail in CI and the gates.
+  directory. It is written in the current directory; when several crates of a workspace use the macros, run
+  `cargo sqlx prepare --workspace` for one `.sqlx` at the workspace root. Rerun it after every query change, or
+  the build will fail in CI and the gates.
 - If no database or sqlx-cli is available in the session, write the query with the unchecked functions
   (`sqlx::query_as::<_, T>(...)` with `.bind`) and say so, instead of committing checked macros with no `.sqlx`
   data that cannot compile offline.
