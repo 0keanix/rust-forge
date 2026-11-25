@@ -134,3 +134,6 @@ Domain skills (`rust-domain-*`) are loaded by the domain that `forge-tools domai
 - `rust-domain-ml` (domain `ml`, key crates `candle-core`, `burn`, `llama-cpp-2`): choosing candle, burn or
   llama.cpp, safetensors and GGUF, Metal and CUDA behind features with a CPU fallback, memory-mapped weights,
   tokenizers, batching, tests with tiny models or recorded fixtures, benchmarks outside the test suite.
+- `rust-domain-web` (domain `web`, key crate `axum`): axum routing and typed extractors, shared state without
+  `Arc<Mutex<_>>`, error types mapped to responses, tower layers, sqlx migrations and offline query data, graceful
+  shutdown, `tracing`, router tests without binding a port.
