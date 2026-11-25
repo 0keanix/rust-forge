@@ -99,12 +99,14 @@ in step 2 and in reports instead of re-reading loki source; re-check the source 
 line contradicts it.
 
 - `loki route` prints only engine, adapter and the final model. With `LOKI_CLAUDE_MODEL_DEVELOPMENT=claude-opus-5-5`
-  and `LOKI_ROUTER` unset (router off) the steps are: intake project-model on claude-sonnet-5-5; already-done check
+  and `LOKI_ROUTER` unset (router off) the steps are: intake project-model on claude-sonnet-5-5 (on later runs often
+  reused from loki's cache with no model call); already-done check
   does not run for a PRD file (only with `LOKI_E10_ALREADY_DONE_CHECK=1`); plan is skipped when the task is sized
   normal, and when loki sizes it large plan runs on claude-opus-5-5 although the start line says "plan sonnet (fast
-  tier)" (stage core); Wall is written by claude-sonnet-5-5 in parallel with implement and is killed after 180 s
-  (stage core); implement and fix on claude-opus-5-5.
-- Wall tests are TypeScript. loki may discard them (for example for referencing paths that do not exist yet); then
+  tier)" (stage core); Wall is written by claude-sonnet-5-5 in parallel with implement (killed after 180 s on stage
+  core; since ffi-mobile it finishes on its own in about a minute); implement and fix on claude-opus-5-5.
+- Wall tests were TypeScript on the early stages and are Rust (`tests/loki_wall_*.rs`) since ffi-mobile. loki may
+  discard them (for example for referencing paths that do not exist yet); then
   loki itself proved nothing and the evidence is the implementer's tests plus our gates.
 - The cross-review in seal runs only when the verdict is VERIFIED, so a PARTIAL run has had no reviewer.
 - PARTIAL (exit code 6) is expected when a stage creates or changes any `Cargo.toml` ("test configuration changed",
@@ -113,4 +115,6 @@ line contradicts it.
 - "no tests executed" in NOT PROVEN can appear even when loki's own `cargo test` passed (empty `test_counts`).
 - With the router off the receipt has no route block: take models and cost per step from
   `.loki/runs/<run-id>/events.jsonl` and `cost.per_model` in the receipt.
+- The implementer may run `scripts/plugin-eval.sh` itself (D-5 of a domain stage). That cost is not counted by
+  `--max-cost` or the receipt; report it separately from the eval output under `target/plugin-eval/`.
 - With `--no-pr`, `--deep` only raises time limits (run 2700 s, implement 1800 s); the deep verify pass needs a PR.
